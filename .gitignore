@@ -1,0 +1,15 @@
+# Generated files
+waves/*.out
+waves/*.vcd
+*.vcd
+*.out
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
