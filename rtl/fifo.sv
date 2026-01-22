@@ -40,5 +40,9 @@ module fifo (
             default: count <= count;
         endcase
     end
+    // Assertions
+    always @(posedge clk) if (rst_n && full && wr_en) $error("Write when full");
+    always @(posedge clk) if (rst_n && empty && rd_en) $error("Read when empty");
+    always @(posedge clk) if (rst_n && full && empty) $error("Full and empty both set");
 endmodule
 `default_nettype wire

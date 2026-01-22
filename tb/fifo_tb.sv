@@ -4,21 +4,36 @@ module fifo_tb();
     logic clk, rst_n, wr_en, rd_en;
     logic [7:0] wdata, rdata;
     logic full, empty;
+    integer cov_empty=0, cov_low=0, cov_mid=0, cov_high=0, cov_full=0;
     fifo dut (.clk(clk), .rst_n(rst_n), .wr_en(wr_en), .rd_en(rd_en),
               .wdata(wdata), .rdata(rdata), .full(full), .empty(empty));
     initial begin clk = 0; forever #5 clk = ~clk; end
     initial begin $dumpfile("waves/fifo.vcd"); $dumpvars(0, fifo_tb); end
+    always @(posedge clk)
+        case (dut.count)
+            0: cov_empty++;
+            1,2,3,4: cov_low++;
+            5,6,7,8,9,10: cov_mid++;
+            11,12,13,14,15: cov_high++;
+            16: cov_full++;
+        endcase
     task reset_dut; rst_n = 0; wr_en = 0; rd_en = 0; wdata = 0;
         @(posedge clk); @(posedge clk); rst_n = 1;
     endtask
     task write_byte(input [7:0] d); wdata = d; wr_en = 1; @(posedge clk); wr_en = 0; wdata = 0; endtask
     task read_byte; rd_en = 1; @(posedge clk); rd_en = 0; @(posedge clk); endtask
+    task print_coverage;
+        $display("\nCoverage: empty=%0d low=%0d mid=%0d high=%0d full=%0d",
+                 cov_empty, cov_low, cov_mid, cov_high, cov_full);
+    endtask
     initial begin
         rst_n = 0; wr_en = 0; rd_en = 0; wdata = 0;
         repeat(2) @(posedge clk); reset_dut();
         write_byte(8'hAA); write_byte(8'hBB); write_byte(8'hCC);
         read_byte(); read_byte(); read_byte();
-        $display("Test Complete"); #20; $finish;
+        for (int i = 0; i < 16; i++) write_byte(8'(i));
+        while (!empty) read_byte();
+        print_coverage(); $display("Test Complete"); #20; $finish;
     end
 endmodule
 `default_nettype wire
