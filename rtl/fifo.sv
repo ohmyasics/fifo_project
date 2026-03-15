@@ -1,8 +1,7 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
-// Simple synchronous FIFO - 8 bit width, 16 entries deep
-// Active-low reset
+// Synchronous FIFO - 8 bit width, 16 entries deep
 module fifo (
     input wire        clk,
     input wire        rst_n,
@@ -17,19 +16,15 @@ module fifo (
     localparam DEPTH = 16;
     localparam ADDR_WIDTH = $clog2(DEPTH);
 
-    // Memory array for FIFO storage
     logic [7:0] mem [0:DEPTH-1];
-
-    // Pointers and count
     logic [ADDR_WIDTH-1:0] wr_ptr;
     logic [ADDR_WIDTH-1:0] rd_ptr;
-    logic [ADDR_WIDTH:0]   count;  // need extra bit to detect full
+    logic [ADDR_WIDTH:0]   count;
 
-    // Status flags
     assign full  = (count == DEPTH);
     assign empty = (count == 0);
 
-    // Write data on clock edge if not full
+    // write logic
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             wr_ptr <= 0;
@@ -39,7 +34,7 @@ module fifo (
         end
     end
 
-    // Read data - goes out one cycle after rd_en
+    // read logic
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             rd_ptr <= 0;
@@ -50,54 +45,70 @@ module fifo (
         end
     end
 
-    // Track how many items in FIFO
+    // count tracking
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             count <= 0;
         end else begin
             case ({wr_en && !full, rd_en && !empty})
-                2'b10: count <= count + 1;  // write only
-                2'b01: count <= count - 1;  // read only
-                default: count <= count;    // idle or both
+                2'b10: count <= count + 1;
+                2'b01: count <= count - 1;
+                default: count <= count;
             endcase
         end
     end
 
-    // ============ ASSERTIONS (using $error for iVerilog compat) ============
-    
-    // Check: no write when full
+    // =====================================================
+    // ASSERTIONS (procedural for iverilog compat)
+    // SVA equivalents for commercial simulators shown in comments
+    // =====================================================
+
+    // SVA: assert property (@(posedge clk) disable iff (!rst_n) full |-> !wr_en);
     always @(posedge clk) begin
-        if (rst_n && full && wr_en) begin
-            $error("ASSERT FAIL: Write attempted when FIFO full");
-        end
+        if (rst_n && full && wr_en)
+            $error("ASSERT: Write when full");
     end
 
-    // Check: no read when empty
+    // SVA: assert property (@(posedge clk) disable iff (!rst_n) empty |-> !rd_en);
     always @(posedge clk) begin
-        if (rst_n && empty && rd_en) begin
-            $error("ASSERT FAIL: Read attempted when FIFO empty");
-        end
+        if (rst_n && empty && rd_en)
+            $error("ASSERT: Read when empty");
     end
 
-    // Check: full and empty cannot both be true
+    // SVA: assert property (@(posedge clk) disable iff (!rst_n) !(full && empty));
     always @(posedge clk) begin
-        if (rst_n && full && empty) begin
-            $error("ASSERT FAIL: FIFO cannot be both full and empty");
-        end
+        if (rst_n && full && empty)
+            $error("ASSERT: Both full and empty");
     end
 
-    // Check: count==0 implies empty
+    // SVA: assert property (@(posedge clk) disable iff (!rst_n) (count == 0) |-> empty);
     always @(posedge clk) begin
-        if (rst_n && (count == 0) && !empty) begin
-            $error("ASSERT FAIL: Count is 0 but empty not set");
-        end
+        if (rst_n && (count == 0) && !empty)
+            $error("ASSERT: Count zero but not empty");
     end
 
-    // Check: count==DEPTH implies full
+    // SVA: assert property (@(posedge clk) disable iff (!rst_n) (count == DEPTH) |-> full);
     always @(posedge clk) begin
-        if (rst_n && (count == DEPTH) && !full) begin
-            $error("ASSERT FAIL: Count is max but full not set");
-        end
+        if (rst_n && (count == DEPTH) && !full)
+            $error("ASSERT: Count max but not full");
+    end
+
+    // SVA: assert property (@(posedge clk) disable iff (!rst_n) count <= DEPTH);
+    always @(posedge clk) begin
+        if (rst_n && count > DEPTH)
+            $error("ASSERT: Count overflow");
+    end
+
+    // SVA: assert property (@(posedge clk) disable iff (!rst_n) wr_ptr < DEPTH);
+    always @(posedge clk) begin
+        if (rst_n && wr_ptr >= DEPTH)
+            $error("ASSERT: Write ptr overflow");
+    end
+
+    // SVA: assert property (@(posedge clk) disable iff (!rst_n) rd_ptr < DEPTH);
+    always @(posedge clk) begin
+        if (rst_n && rd_ptr >= DEPTH)
+            $error("ASSERT: Read ptr overflow");
     end
 
 endmodule
