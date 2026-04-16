@@ -3,6 +3,7 @@ waves/*.out
 waves/*.vcd
 *.vcd
 *.out
+*_sim
 
 # Editor
 .vscode/

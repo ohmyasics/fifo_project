@@ -2,6 +2,23 @@
 
 Synchronous FIFO implementation in SystemVerilog with complete verification suite.
 
+## Why This Repo Exists
+
+This is a small block-level DV project meant to show the pieces I use on real verification work: a readable spec, directed tests, randomized traffic, a scoreboard, assertion-style checks, functional coverage counters, a repeatable regression target, and CI.
+
+## Current Regression Snapshot
+
+Last checked with Icarus Verilog 11.0:
+
+| Area | Result |
+|------|--------|
+| Directed tests | Reset, basic ordering, full/empty, wraparound, overflow, underflow |
+| Random tests | 2 seeds, 200 cycles each |
+| Scoreboard | 222 checks, 0 errors |
+| Regression | PASS=11 FAIL=0 |
+
+Full notes are in [`reports/regression_summary.md`](reports/regression_summary.md).
+
 ## Specs
 
 - Data width: 8 bits
@@ -38,6 +55,13 @@ Or use the Makefile:
 ```bash
 cd scripts
 make regress
+```
+
+For CI-equivalent local runs:
+
+```bash
+cd scripts
+make ci
 ```
 
 ## Test Suite

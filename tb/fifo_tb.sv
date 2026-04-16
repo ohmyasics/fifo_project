@@ -59,16 +59,18 @@ module fifo_tb();
             11,12,13,14,15: cov_high++;
             16: cov_full++;
         endcase
-        if (wr_en) cov_write++;
-        if (rd_en) cov_read++;
         if (full && !prev_full) cov_full_toggle++;
         if (empty && !prev_empty) cov_empty_toggle++;
         if (wr_en && full) cov_wr_when_full++;
         if (rd_en && empty) cov_rd_when_empty++;
-        if (wr_en && rd_en && !full && !empty) cov_simul_rw++;
-        // wdata pattern coverage
-        if (wr_en) begin
-            case (wdata)
+        prev_full <= full;
+        prev_empty <= empty;
+    end
+
+    task sample_write_cov(input [7:0] data);
+        begin
+            cov_write++;
+            case (data)
                 8'h00: cov_wdata_00++;
                 8'hFF: cov_wdata_ff++;
                 8'h55: cov_wdata_55++;
@@ -76,9 +78,7 @@ module fifo_tb();
                 8'h01, 8'h02, 8'h04, 8'h08, 8'h10, 8'h20, 8'h40, 8'h80: cov_wdata_walk++;
             endcase
         end
-        prev_full <= full;
-        prev_empty <= empty;
-    end
+    endtask
 
     // ========== SCOREBOARD ==========
 
@@ -122,12 +122,14 @@ module fifo_tb();
         @(posedge clk);
         wr_en = 0; wdata = 0;
         sb_push(data);
+        sample_write_cov(data);
     endtask
 
     task drive_read();
         rd_en = 1;
         @(posedge clk);
         rd_en = 0;
+        cov_read++;
         @(posedge clk);
         sb_pop_check(rdata);
     endtask
@@ -205,6 +207,9 @@ module fifo_tb();
             @(posedge clk);
             wr_en = 0; rd_en = 0;
             sb_push(8'(i));
+            sample_write_cov(8'(i));
+            cov_read++;
+            cov_simul_rw++;
             sb_pop_check(rdata);
         end
         if (dut.count !== 8) begin
